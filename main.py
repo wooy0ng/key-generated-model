@@ -13,7 +13,7 @@ parser = argparse.ArgumentParser()
 
 # mode : train, test, evaluate, dev
 # if you selected evaluate mode, you should set default path.
-parser.add_argument('--mode', required=False, default='key_test', help='train, test, key_train, key_test')
+parser.add_argument('--mode', required=False, default='evaluate', help='train, test, key_train, key_test, evaluate')
 parser.add_argument('--path', required=False, default='./dataset/evaluate/')
 parser.add_argument('--pretrained_mode', required=False, default=False)
 
@@ -35,10 +35,10 @@ parser.add_argument('--num_layers', required=False, default=1)
 
 parser.add_argument('--master_key_size', required=False, default=128)
 # batch_size 
-parser.add_argument('--batch_size', required=False, default=4)
+parser.add_argument('--batch_size', required=False, default=8)
 
 # epoch
-parser.add_argument('--epoch', required=False, default=50)
+parser.add_argument('--epoch', required=False, default=31)
 
 # pretrained
 parser.add_argument('--pretrained_model', required=False, default='./model.pt')
@@ -61,6 +61,9 @@ elif args.mode == 'test':
 elif args.mode == 'key_test':
     print("[+] key test data load...", end=' ')
     key_test(args)
+elif args.mode == 'evaluate':
+    print("[+] evaluate data load...", end = ' ')
+    evaluate(args)    
 
 
 

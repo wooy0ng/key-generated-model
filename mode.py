@@ -19,6 +19,7 @@ import pickle as pkl
 
 
 def key_train(args):
+    print("[+] train data load...", end='\t')
     args.mode = 'train'
     datasets = load_datasets(args)
 
@@ -28,7 +29,8 @@ def key_train(args):
         shuffle=False
     )
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cpu")
     
     # load model
     model = LSTMClassification(
@@ -101,7 +103,8 @@ def train(args):
         batch_size=args.batch_size, 
         shuffle=True
     )
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cpu")
     print(f"[+] {device} is available")
     
     # load model
@@ -124,7 +127,7 @@ def train(args):
         for data, labels in data_loader:
             model.train(data, labels)
 
-        if epoch % 10 == 0:
+        if epoch % 2 == 0:
             loss = sum(model.losses) / len(data_loader)
             t = time.time() - start
             print(f'[{epoch+1} epoch, {model.iteration} iteration] mean loss : {loss:.3f}\t({t:.3f} sec)')
@@ -145,7 +148,8 @@ def key_test(args):
         batch_size=1, 
         shuffle=False
     )
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cpu")
     print(f"[+] {device} is available")
 
     model = LSTMClassification(
@@ -168,7 +172,6 @@ def key_test(args):
     
     files_name = datasets.files_name
     correct = 0
-    
     with torch.no_grad():
         for file_name, (data, labels) in zip(files_name, data_loader):
             inputs = data
@@ -177,19 +180,19 @@ def key_test(args):
             
             predicted = model(inputs)
             predicted = (predicted > 0.5).float()
-            
 
             predicted_key = key_similarity_model.test(model.context, predicted)
             predicted_key = (predicted_key.squeeze() > 0.5).float()
             # loss = criterion(predicted, labels)
             torch.set_printoptions(precision=3, sci_mode=False)
             print(f"[{file_name}] predicted labels : {predicted.item()}   actual labels : {labels.item()}")
-            print(f"context vector : \n{model.context}")
+            # print(f"context vector : \n{model.context}")
             print(f"predicted key : \t{bit_to_string(predicted_key)}  ({bit_similarity(predicted_key, key)}%)\t(0x{bit_to_hex(predicted_key)})")
             print(f"actual key : \t\t{bit_to_string(key)}  (100.0%)\t(0x{bit_to_hex(key)})")
             print(f"is equal : {isTensorEqual(predicted_key, key)}\n")
-            if predicted == labels.item():
+            if isTensorEqual(predicted_key, key):
                 correct += 1
+    # print(f"accuracy : {correct / len(files_name) * 100.:.3f}%")
     return
 
 
@@ -203,7 +206,8 @@ def test(args):
         batch_size=1, 
         shuffle=False
     )
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cpu")
     print(f"[+] {device} is available")
     
     # load model
@@ -236,7 +240,79 @@ def test(args):
     torch.set_printoptions(precision=8, sci_mode=False)
     # print(f"context vector : {model.context}")
     # print(f"derivative : {F_Tanh_derivative(model.context)}")    
-    print(f"accuracy : {correct / len(files_name) * 100:.1f}%")
+    print(f"accuracy : {correct / len(files_name) * 100:.3f}%")
     
 
 
+
+def evaluate(args):
+    datasets = load_datasets(args)
+    
+    data_loader = DataLoader(
+        datasets, 
+        batch_size=1, 
+        shuffle=False
+    )
+    
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cpu")
+    print(f"[+] {device} is available")
+
+    # load model
+    model = LSTMClassification(
+        in_size=datasets.size(2),
+        hidden_size=args.hidden_size,
+        out_size=1,
+        sequence_length=datasets.size(1),
+        num_layers=args.num_layers,
+        device=device
+    ).to(device)
+
+    model = load_model(args, model, 'model')
+
+    key_generated_class = MakeRandomKey(args)
+    generated_key = key_generated_class()
+
+    key_similarity_model = KeySimilarity(args).to(device)
+    key_similarity_model = load_model(args, key_similarity_model, 'key_similarity_model')
+    key = key_generated_class.key.view(1, -1).to(device)
+
+    files_name = datasets.files_name
+    correct = 0
+    torch.set_printoptions(precision=8, sci_mode=False)
+    with torch.no_grad():
+        
+        iterate = iter(data_loader)
+        data = next(iterate)
+
+        inputs = data[0].to(device)
+        predicted = model(inputs)
+        predicted = round(predicted.item())
+        print(f"predicted labels : {predicted}")
+
+        predicted = torch.tensor(predicted).view(-1, 1)
+        predicted_key = key_similarity_model.test(model.context, predicted)
+        predicted_key = (predicted_key > 0.5).float()
+
+        print(f"predicted key : \t{bit_to_string(predicted_key)}  ({bit_similarity(predicted_key, key)}%)\t(0x{bit_to_hex(predicted_key)})")
+        print(f"actual key : \t\t{bit_to_string(key)}  (100.0%)\t(0x{bit_to_hex(key)})")
+
+        # for file_name, (data, labels) in zip(files_name, data_loader):
+        #     inputs = data
+        #     inputs = inputs.to(device)
+        #     # labels = labels.to(device)
+            
+        #     predicted = model(inputs)
+        #     predicted = round(predicted.item())
+        #     # loss = criterion(predicted, labels)
+        #     print(f"[{file_name}] predicted labels : {predicted}")
+
+        #     predicted = torch.tensor(predicted).view(-1, 1)
+        #     predicted_key = key_similarity_model.test(model.context, predicted)
+        #     predicted_key = (predicted_key > 0.5).float()
+
+        #     print(f"predicted key : \t{bit_to_string(predicted_key)}  ({bit_similarity(predicted_key, key)}%)\t(0x{bit_to_hex(predicted_key)})")
+        #     print(f"actual key : \t\t{bit_to_string(key)}  (100.0%)\t(0x{bit_to_hex(key)})")
+    
+
+    return 

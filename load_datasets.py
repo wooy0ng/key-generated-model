@@ -42,12 +42,11 @@ class load_datasets(Dataset):
         rolled, _labels = [], []
         for idx, file in enumerate(files):
             data, sr = librosa.load(file)
-            time_limited = sr * args.time_limited
             # +--------------------------------+ #
             # |      1. crop or padding        | #
             # +--------------------------------+ #
+            time_limited = sr * args.time_limited
             data = data_crop_or_padding(data, sr, time_limited)
-
 
             # +--------------------------------+ #
             # |      2. down sampling          | #
@@ -73,8 +72,8 @@ class load_datasets(Dataset):
             mfcc = librosa.feature.mfcc(
                 y=data,
                 sr=sr,
-            )
-            
+            )            
+
             # +--------------------------------+ #
             # |        4. augmentation         | #
             # +--------------------------------+ #
@@ -85,9 +84,13 @@ class load_datasets(Dataset):
                 rolled.append(rolled_mfcc)
                 _labels.append(labels[idx])
             result.append(mfcc)
+
+        # for d in result:
+        #     print(d.shape)  
         
         result = result + rolled
         labels = labels + _labels
+        
         
         _result = np.asarray(result)
         _result = np.transpose(_result, (0, 2, 1))

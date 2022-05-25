@@ -94,7 +94,8 @@ class KeySimilarity(nn.Module):
             nn.Linear(self.in_size, self.out_size),
             nn.Sigmoid()
         )
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        # self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.device = torch.device('cpu')
         self.criterion = nn.MSELoss()
         self.optimizer = optim.Adam(self.parameters(), lr=5e-3)
 
@@ -110,7 +111,7 @@ class KeySimilarity(nn.Module):
     
     def train(self, inputs, labels, key):
         inputs = inputs.to(self.device)
-        inputs = torch.cat((inputs, self.label_embedded(labels.int()).squeeze(1)), dim=1)
+        inputs = torch.cat((inputs, self.label_embedded(labels.long()).squeeze(1)), dim=1)
 
         labels = labels.to(self.device)
         outputs = self.forward(inputs)
@@ -131,11 +132,11 @@ class KeySimilarity(nn.Module):
     
     def test(self, inputs, labels):
         # labels : predicted labels
-        inputs = torch.cat((inputs, self.label_embedded(labels.int()).squeeze(1)), dim=1)
-        # inputs = torch.cat((inputs, self.label_embedded(torch.tensor([1]).view(-1, 1)).squeeze(1)), dim=1)
+        inputs = torch.cat((inputs, self.label_embedded(labels.long()).squeeze(1)), dim=1)
+        # inputs = torch.cat((inputs, self.label_embedded(torch.tensor([[1]])).squeeze(1)), dim=1)
         '''
         evaluate code
-        inputs = torch.cat((inputs, self.label_embedded(torch.tensor([1]).view(-1, 1)).squeeze(1)), dim=1)
+        inputs = torch.cat((inputs, self.label_embedded(torch.tensor([[1]])).squeeze(1)), dim=1)
         '''
         out = self.forward(inputs)
         return out
